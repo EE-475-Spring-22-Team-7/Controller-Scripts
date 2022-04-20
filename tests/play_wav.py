@@ -7,7 +7,7 @@ import struct
 
 CHUNK = 512
 
-ATTEN_FACTOR = 1
+ATTEN_FACTOR = 4
 
 if len(sys.argv) < 2:
     print("Plays a wave file.\n\nUsage: %s filename.wav" % sys.argv[0])

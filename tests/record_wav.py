@@ -2,7 +2,7 @@ import pyaudio
 import wave
 import sys
 
-MIC_DEVICE_INDEX = 2  # The USB Mic Audio Device index
+MIC_DEVICE_NAME = 'USB PnP Audio Device'
 
 CHUNK = 512
 WIDTH = 2
@@ -22,8 +22,15 @@ wf.setframerate(RATE)
 
 p = pyaudio.PyAudio()
 
+# Find audio device index
+device_idx = None
+for i in range(p.get_device_count()):
+    if MIC_DEVICE_NAME == p.get_device_info_by_index(i)['name'][:len(MIC_DEVICE_NAME)]:
+        device_idx = i
+assert device_idx, 'Audio Device with name "{}" not found'.format(MIC_DEVICE_NAME)
+
 stream = p.open(format=p.get_format_from_width(WIDTH),
-                input_device_index=MIC_DEVICE_INDEX,
+                input_device_index=device_idx,
                 channels=CHANNELS,
                 rate=RATE,
                 input=True,
