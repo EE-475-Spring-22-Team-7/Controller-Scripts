@@ -9,11 +9,12 @@ MIC_DEVICE_NAME = 'USB PnP Audio Device'
 
 # Wit API Key
 #API_KEY='NZBO2AMYDUSMDX2BI7POKYA3BGVSEHPU' # Version 1
-API_KEY='MT5MPJBOAEZEKIWJU2POKXAGU5V2ILTQ' # Version 2
+#API_KEY='MT5MPJBOAEZEKIWJU2POKXAGU5V2ILTQ' # Version 2
+API_KEY='3X2AUX3KXFN63HOMNOKIGHG2LUHRUH3T' # Version 2.1
 
 CONF_THRESH = 0.4
 
-DEFAULT_DIST = 3.0 # feet
+DEFAULT_DIST = 3 # feet
 DEFAULT_ROTATION = 45 # degrees
 
 def wit_recognize_callback(recognizer, audio):
@@ -46,7 +47,13 @@ def interpret_wit_result(d):
             print('ERROR: intent confidence low')
             return
         cmd_intent = d['entities']['intent'][0]['value']
-        if cmd_intent == 'go_forward':
+
+        if 'speed' in d['entities']:
+            if d['entities']['speed'][0]['confidence'] >= CONF_THRESH:
+                val = d['entities']['speed'][0]['value'].upper()
+                print('>>> RC COMMAND >>>   UPDATE TO {} SPEED'.format(val))
+        
+        if cmd_intent == 'move_forward':
             distance = DEFAULT_DIST
             if 'distance' in d['entities']:
                 distance = handle_distance(d['entities']['distance'][0])
@@ -54,7 +61,8 @@ def interpret_wit_result(d):
                 print('ERROR: invalid distance')
                 return
             print('>>> RC COMMAND >>>   MOVE FORWARD {} FEET'.format(distance))
-        elif cmd_intent == 'go_back':
+        
+        elif cmd_intent == 'move_backward':
             distance = DEFAULT_DIST
             if 'distance' in d['entities']:
                 distance = handle_distance(d['entities']['distance'][0])
@@ -62,19 +70,36 @@ def interpret_wit_result(d):
                 print('ERROR: invalid distance')
                 return
             print('>>> RC COMMAND >>>   MOVE BACKWARD {} FEET'.format(distance))
+        
         elif cmd_intent == 'rotate_right':
-            pass
+            angle = DEFAULT_ROTATION
+            if 'angle' in d['entities']:
+                angle = handle_angle(d['entities']['angle'][0])
+            if angle == None:
+                print('ERROR: invalid angle')
+                return
+            print('>>> RC COMMAND >>>   ROTATE RIGHT {} DEGREES'.format(angle))
+        
         elif cmd_intent == 'rotate_left':
-            pass
+            angle = DEFAULT_ROTATION
+            if 'angle' in d['entities']:
+                angle = handle_angle(d['entities']['angle'][0])
+            if angle == None:
+                print('ERROR: invalid angle')
+                return
+            print('>>> RC COMMAND >>>   ROTATE LEFT {} DEGREES'.format(angle))
+        
         elif cmd_intent == 'rotate_back':
-            pass
+            print('>>> RC COMMAND >>>   ROTATE LEFT {} DEGREES'.format(180))
+        
         elif cmd_intent == 'cancel':
             print('>>> RC COMMAND >>>   CANCEL')
+        
         elif cmd_intent == 'continue':
             print('>>> RC COMMAND >>>   CONTINUE')
+        
         else:
             print('ERROR: intent "{}" not recognized'.format(cmd_intent))
-            return        
 
     except KeyError as e:
         print('result dictionary key error: "{}"'.format(e))
@@ -94,8 +119,14 @@ def handle_distance(d):
     return round(value, 1) # Round to 0.1 feet
 
 def handle_angle(d):
-    pass
-
+    if d['confidence'] < CONF_THRESH:
+        print('ERROR: distance confidence low')
+        return None
+    try:
+        value = int(d['value']) # Directly convert to int
+    except: 
+        return None
+    return round(value) # Round to 1 degree for now
 
 
 def initialize_recognizer():
@@ -116,7 +147,7 @@ def initialize_recognizer():
     with m as source:
         r.adjust_for_ambient_noise(source)
     r.dynamic_energy_threshold = False
-    #r.energy_threshold = 120
+    #r.energy_threshold = 130
     #r.operation_timeout = 3.0
     print('Mic index = {mi}, detection threshold = {th}'.format(mi=device_idx, th=r.energy_threshold))
     return (r, m)
