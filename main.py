@@ -4,6 +4,8 @@ from time import sleep
 import json
 import speech_recognition as sr
 
+from sound_play import *
+
 # Microphone audio device name
 MIC_DEVICE_NAME = 'USB PnP Audio Device'
 
@@ -18,6 +20,7 @@ DEFAULT_DIST = 3 # feet
 DEFAULT_ROTATION = 45 # degrees
 
 def wit_recognize_callback(recognizer, audio):
+    background_play('./sounds/ding.wav', 2)
     print('interpreting speech...')
     # received audio data, now we'll recognize it using Google Speech Recognition
     try:
@@ -26,7 +29,12 @@ def wit_recognize_callback(recognizer, audio):
         print(json.dumps(result, indent=2))
         #print(result)
         print()
-        interpret_wit_result(result)
+        success = interpret_wit_result(result)
+        # Play sounds!
+        if success:
+            foreground_play('./sounds/fast-happy-ding.wav');
+        else:
+            foreground_play('./sounds/sad-dings.wav');
     except sr.UnknownValueError as e:
         handle_sr_value_error(e)
     except sr.RequestError as e:
@@ -34,18 +42,20 @@ def wit_recognize_callback(recognizer, audio):
 
 def handle_sr_value_error(err):
     print("Wit could not understand audio")
+    foreground_play('./sounds/buzz-ding.wav')
 
 def handle_api_req_error(err):
     print("Could not request results from Wit service: {0}".format(err))
+    foreground_play('./sounds/buzz-ding.wav')
 
 def interpret_wit_result(d):
     try:
         if not 'intent' in d['entities']:
             print('ERROR: No intent result')
-            return
+            return False
         if d['entities']['intent'][0]['confidence'] < CONF_THRESH:
             print('ERROR: intent confidence low')
-            return
+            return False
         cmd_intent = d['entities']['intent'][0]['value']
 
         if 'speed' in d['entities']:
@@ -59,7 +69,7 @@ def interpret_wit_result(d):
                 distance = handle_distance(d['entities']['distance'][0])
             if distance == None:
                 print('ERROR: invalid distance')
-                return
+                return False
             print('>>> RC COMMAND >>>   MOVE FORWARD {} FEET'.format(distance))
         
         elif cmd_intent == 'move_backward':
@@ -68,7 +78,7 @@ def interpret_wit_result(d):
                 distance = handle_distance(d['entities']['distance'][0])
             if distance == None:
                 print('ERROR: invalid distance')
-                return
+                return False
             print('>>> RC COMMAND >>>   MOVE BACKWARD {} FEET'.format(distance))
         
         elif cmd_intent == 'rotate_right':
@@ -77,7 +87,7 @@ def interpret_wit_result(d):
                 angle = handle_angle(d['entities']['angle'][0])
             if angle == None:
                 print('ERROR: invalid angle')
-                return
+                return False
             print('>>> RC COMMAND >>>   ROTATE RIGHT {} DEGREES'.format(angle))
         
         elif cmd_intent == 'rotate_left':
@@ -86,7 +96,7 @@ def interpret_wit_result(d):
                 angle = handle_angle(d['entities']['angle'][0])
             if angle == None:
                 print('ERROR: invalid angle')
-                return
+                return False
             print('>>> RC COMMAND >>>   ROTATE LEFT {} DEGREES'.format(angle))
         
         elif cmd_intent == 'rotate_back':
@@ -101,8 +111,11 @@ def interpret_wit_result(d):
         else:
             print('ERROR: intent "{}" not recognized'.format(cmd_intent))
 
+        return True
+
     except KeyError as e:
         print('result dictionary key error: "{}"'.format(e))
+        return False
 
 def handle_distance(d):
     if d['confidence'] < CONF_THRESH:
@@ -153,12 +166,12 @@ def initialize_recognizer():
     return (r, m)
 
 def main():
-    (r, m) = initialize_recognizer()
-    print('listening started...')    
-    stop_listening = r.listen_in_background(m, wit_recognize_callback) # start listening in the background
-    # "stop_listening" is now a function that, when called, stops background listening
-
     try:
+        (r, m) = initialize_recognizer()
+        foreground_play('./sounds/happy-ding-2.wav')
+        print('listening started...')    
+        stop_listening = r.listen_in_background(m, wit_recognize_callback) # start listening in the background
+        # "stop_listening" is now a function that, when called, stops background listening
         
         ### MAIN CONTOL LOOP
         while True: sleep(0.1) # Do nothing
@@ -168,7 +181,11 @@ def main():
         print()
         stop_listening(wait_for_stop=False)
         print('listening stopped.')
+        background_play('./sounds/buzz-ding.wav')
         sleep(1) # wait for things to close
+    except:
+        # Some unexpected error! Crash!
+        foreground_play('./sounds/breaking-glass.wav')
 
 if __name__ == '__main__':
     main()
