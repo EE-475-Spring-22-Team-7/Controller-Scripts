@@ -1,6 +1,6 @@
-
 import pyaudio, wave, struct
 from threading import Thread
+import array
 
 CHUNK = 512
 
@@ -19,24 +19,20 @@ def foreground_play(fname, atten=1):
                     rate=wf.getframerate(),
                     output=True)
 
-    data = wf.readframes(CHUNK)
-    while data != b'':
-        # Convert data to ints
-        data_in_int = struct.unpack(str(len(data)//2)+'h', data)
-        
-        # Process data (attenuate)
-        data_out_int = []    
-        for i in range(len(data_in_int)):
-            data_out_int.append(data_in_int[i] // atten)
-        
-        # Convert back to bytes for output
-        data_out_bytes = b''
-        for samp in data_out_int:
-            data_out_bytes += struct.pack('h',samp)    
-        # Srite data
-        stream.write(data_out_bytes, exception_on_underflow=True)
-        # Read next data
-        data = wf.readframes(CHUNK)
+    # Read initial data
+    data = array.array('h')
+    data.frombytes(wf.readframes(CHUNK))
+    while len(data) != 0:
+        # Process data: attenuate
+        for i in range(len(data)):
+            data[i] = int(data[i] / atten)
+
+        # Write out data
+        stream.write(data.tobytes(), exception_on_underflow=False)
+
+        # Get next data chunk
+        data = array.array('h')
+        data.frombytes(wf.readframes(CHUNK))
 
     stream.stop_stream()
     stream.close()

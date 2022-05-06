@@ -22,7 +22,7 @@ DEFAULT_DIST = 3 # feet
 DEFAULT_ROTATION = 45 # degrees
 
 def wit_recognize_callback(recognizer, audio):
-    background_play('./sounds/ding.wav', 2)
+    background_play('./sounds/ding.wav', 1)
     print('interpreting speech...')
     # received audio data, now we'll recognize it using Google Speech Recognition
     try:
@@ -164,6 +164,7 @@ def initialize_recognizer():
     r.dynamic_energy_threshold = False
     r.energy_threshold = 130
     #r.operation_timeout = 3.0
+
     print('Mic index = {mi}, detection threshold = {th}'.format(mi=device_idx, th=r.energy_threshold))
     return (r, m)
 
@@ -183,11 +184,13 @@ def main():
         print()
         stop_listening(wait_for_stop=False)
         print('listening stopped.')
-        background_play('./sounds/buzz-ding.wav')
+        background_play('./sounds/buzz-ding.wav', 1.5)
         sleep(1) # wait for things to close
+        exit(0)
     except:
         # Some unexpected error! Crash!
         foreground_play('./sounds/breaking-glass.wav')
+        exit(1)
 
 if __name__ == '__main__':
     main()
