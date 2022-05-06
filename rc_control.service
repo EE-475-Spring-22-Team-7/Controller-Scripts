@@ -1,0 +1,10 @@
+[Unit]
+Description=RC Car Controller Script
+
+[Service]
+User=pi
+WorkingDirectory=<THIS_DIRECTORY>
+ExecStart=<THIS_DIRECTORY>/main.py
+
+[Install]
+WantedBy=multi-user.target
