@@ -1,4 +1,6 @@
-# Top level script
+#!/usr/bin/env python3 
+
+# Top Level RC Car Controller Script
 
 from time import sleep
 import json
@@ -160,7 +162,7 @@ def initialize_recognizer():
     with m as source:
         r.adjust_for_ambient_noise(source)
     r.dynamic_energy_threshold = False
-    #r.energy_threshold = 130
+    r.energy_threshold = 130
     #r.operation_timeout = 3.0
     print('Mic index = {mi}, detection threshold = {th}'.format(mi=device_idx, th=r.energy_threshold))
     return (r, m)
