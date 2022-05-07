@@ -6,6 +6,8 @@ from time import sleep
 import json
 import speech_recognition as sr
 
+import logging, sys
+
 from sound_play import *
 
 # Microphone audio device name
@@ -21,16 +23,22 @@ CONF_THRESH = 0.4
 DEFAULT_DIST = 3 # feet
 DEFAULT_ROTATION = 45 # degrees
 
-def wit_recognize_callback(recognizer, audio):
-    background_play('./sounds/ding.wav', 1)
-    print('interpreting speech...')
+# Defile logger
+handler = logging.StreamHandler(stream=sys.stdout)
+log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
+log.addHandler(handler)
+
+def wit_recognize_callback(recognizer, audio):    
+    background_play('./sounds/ding.wav', 0.5)
+    log.info('interpreting speech...')
     # received audio data, now we'll recognize it using Google Speech Recognition
     try:
         result = recognizer.recognize_wit(audio, key=API_KEY, show_all=True)
-        print('Wit response:')
-        print(json.dumps(result, indent=2))
-        #print(result)
-        print()
+        log.info('Wit response:')
+        log.info(json.dumps(result, indent=2))
+        #log.info(result)
+        log.info('')
         success = interpret_wit_result(result)
         # Play sounds!
         if success:
@@ -43,85 +51,85 @@ def wit_recognize_callback(recognizer, audio):
         handle_api_req_error(e)
 
 def handle_sr_value_error(err):
-    print("Wit could not understand audio")
+    log.info("Wit could not understand audio")
     foreground_play('./sounds/buzz-ding.wav')
 
 def handle_api_req_error(err):
-    print("Could not request results from Wit service: {0}".format(err))
+    log.info("Could not request results from Wit service: {0}".format(err))
     foreground_play('./sounds/buzz-ding.wav')
 
 def interpret_wit_result(d):
     try:
         if not 'intent' in d['entities']:
-            print('ERROR: No intent result')
+            log.info('ERROR: No intent result')
             return False
         if d['entities']['intent'][0]['confidence'] < CONF_THRESH:
-            print('ERROR: intent confidence low')
+            log.info('ERROR: intent confidence low')
             return False
         cmd_intent = d['entities']['intent'][0]['value']
 
         if 'speed' in d['entities']:
             if d['entities']['speed'][0]['confidence'] >= CONF_THRESH:
                 val = d['entities']['speed'][0]['value'].upper()
-                print('>>> RC COMMAND >>>   UPDATE TO {} SPEED'.format(val))
+                log.info('>>> RC COMMAND >>>   UPDATE TO {} SPEED'.format(val))
         
         if cmd_intent == 'move_forward':
             distance = DEFAULT_DIST
             if 'distance' in d['entities']:
                 distance = handle_distance(d['entities']['distance'][0])
             if distance == None:
-                print('ERROR: invalid distance')
+                log.info('ERROR: invalid distance')
                 return False
-            print('>>> RC COMMAND >>>   MOVE FORWARD {} FEET'.format(distance))
+            log.info('>>> RC COMMAND >>>   MOVE FORWARD {} FEET'.format(distance))
         
         elif cmd_intent == 'move_backward':
             distance = DEFAULT_DIST
             if 'distance' in d['entities']:
                 distance = handle_distance(d['entities']['distance'][0])
             if distance == None:
-                print('ERROR: invalid distance')
+                log.info('ERROR: invalid distance')
                 return False
-            print('>>> RC COMMAND >>>   MOVE BACKWARD {} FEET'.format(distance))
+            log.info('>>> RC COMMAND >>>   MOVE BACKWARD {} FEET'.format(distance))
         
         elif cmd_intent == 'rotate_right':
             angle = DEFAULT_ROTATION
             if 'angle' in d['entities']:
                 angle = handle_angle(d['entities']['angle'][0])
             if angle == None:
-                print('ERROR: invalid angle')
+                log.info('ERROR: invalid angle')
                 return False
-            print('>>> RC COMMAND >>>   ROTATE RIGHT {} DEGREES'.format(angle))
+            log.info('>>> RC COMMAND >>>   ROTATE RIGHT {} DEGREES'.format(angle))
         
         elif cmd_intent == 'rotate_left':
             angle = DEFAULT_ROTATION
             if 'angle' in d['entities']:
                 angle = handle_angle(d['entities']['angle'][0])
             if angle == None:
-                print('ERROR: invalid angle')
+                log.info('ERROR: invalid angle')
                 return False
-            print('>>> RC COMMAND >>>   ROTATE LEFT {} DEGREES'.format(angle))
+            log.info('>>> RC COMMAND >>>   ROTATE LEFT {} DEGREES'.format(angle))
         
         elif cmd_intent == 'rotate_back':
-            print('>>> RC COMMAND >>>   ROTATE LEFT {} DEGREES'.format(180))
+            log.info('>>> RC COMMAND >>>   ROTATE LEFT {} DEGREES'.format(180))
         
         elif cmd_intent == 'cancel':
-            print('>>> RC COMMAND >>>   CANCEL')
+            log.info('>>> RC COMMAND >>>   CANCEL')
         
         elif cmd_intent == 'continue':
-            print('>>> RC COMMAND >>>   CONTINUE')
+            log.info('>>> RC COMMAND >>>   CONTINUE')
         
         else:
-            print('ERROR: intent "{}" not recognized'.format(cmd_intent))
+            log.info('ERROR: intent "{}" not recognized'.format(cmd_intent))
 
         return True
 
     except KeyError as e:
-        print('result dictionary key error: "{}"'.format(e))
+        log.info('result dictionary key error: "{}"'.format(e))
         return False
 
 def handle_distance(d):
     if d['confidence'] < CONF_THRESH:
-        print('ERROR: distance confidence low')
+        log.info('ERROR: distance confidence low')
         return None
     value = d['value']
     if d['unit'] == 'foot':
@@ -129,13 +137,13 @@ def handle_distance(d):
     elif d['unit'] == 'inch':
         value /= 12 # 12 inches in a foot
     else:
-        print('ERROR: invalid distance unit "{}"'.format(d['unit']))
+        log.info('ERROR: invalid distance unit "{}"'.format(d['unit']))
         return None
     return round(value, 1) # Round to 0.1 feet
 
 def handle_angle(d):
     if d['confidence'] < CONF_THRESH:
-        print('ERROR: distance confidence low')
+        log.info('ERROR: distance confidence low')
         return None
     try:
         value = int(d['value']) # Directly convert to int
@@ -145,10 +153,10 @@ def handle_angle(d):
 
 
 def initialize_recognizer():
-    #print("# LIST MICROPHONES")
+    #log.info("# LIST MICROPHONES")
     device_idx = None
     for index, name in enumerate(sr.Microphone.list_microphone_names()):
-        #print("Microphone with name \"{1}\" found for `Microphone(device_index={0})`".format(index, name))
+        #log.info("Microphone with name \"{1}\" found for `Microphone(device_index={0})`".format(index, name))
         if MIC_DEVICE_NAME == name[:len(MIC_DEVICE_NAME)]: # If start of device name matches name string
             device_idx = index
             break
@@ -165,14 +173,15 @@ def initialize_recognizer():
     r.energy_threshold = 130
     #r.operation_timeout = 3.0
 
-    print('Mic index = {mi}, detection threshold = {th}'.format(mi=device_idx, th=r.energy_threshold))
+    log.info('Mic index = {mi}, detection threshold = {th}'.format(mi=device_idx, th=r.energy_threshold))
     return (r, m)
 
 def main():
     try:
         (r, m) = initialize_recognizer()
         foreground_play('./sounds/happy-ding-2.wav')
-        print('listening started...')    
+        # log.info('listening started...')
+        log.info('listening started...')
         stop_listening = r.listen_in_background(m, wit_recognize_callback) # start listening in the background
         # "stop_listening" is now a function that, when called, stops background listening
         
@@ -181,14 +190,15 @@ def main():
         ###
 
     except KeyboardInterrupt:
-        print()
+        log.info('')
         stop_listening(wait_for_stop=False)
-        print('listening stopped.')
+        log.info('listening stopped.')
         background_play('./sounds/buzz-ding.wav', 1.5)
         sleep(1) # wait for things to close
         exit(0)
-    except:
+    except any as e:
         # Some unexpected error! Crash!
+        log.info(e)
         foreground_play('./sounds/breaking-glass.wav')
         exit(1)
 

@@ -3,6 +3,8 @@ import wave
 import sys
 
 MIC_DEVICE_NAME = 'USB PnP Audio Device'
+# MIC_DEVICE_NAME = 'HD Web Camera'
+# RATE = 16000
 
 CHUNK = 512
 WIDTH = 2
