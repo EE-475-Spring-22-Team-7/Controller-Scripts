@@ -4,9 +4,13 @@
 
 from time import sleep
 import json
+import logging, sys, os
 import speech_recognition as sr
 
-import logging, sys
+# Exit on SIGTERM
+import signal
+def sigterm_handler(_signo, _stack_frame): exit(0)
+signal.signal(signal.SIGTERM, sigterm_handler)
 
 from sound_play import *
 
@@ -189,18 +193,19 @@ def main():
         while True: sleep(0.1) # Do nothing
         ###
 
-    except KeyboardInterrupt:
+    except KeyboardInterrupt: pass # Skips to "finally"
+    except Exception as e:
+        # Some unexpected error! Crash!        
+        foreground_play('./sounds/breaking-glass.wav')        
+        log.info('### EXCEPTION! : '+str(e))
+        os._exit(1) # Exit without "finally"!
+    
+    finally: # Play the graceful exit sound
         log.info('')
         stop_listening(wait_for_stop=False)
         log.info('listening stopped.')
         background_play('./sounds/buzz-ding.wav', 1.5)
-        sleep(1) # wait for things to close
-        exit(0)
-    except any as e:
-        # Some unexpected error! Crash!
-        log.info(e)
-        foreground_play('./sounds/breaking-glass.wav')
-        exit(1)
+        sleep(1) # wait for things to close        
 
 if __name__ == '__main__':
     main()
