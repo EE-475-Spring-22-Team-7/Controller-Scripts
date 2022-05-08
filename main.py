@@ -34,7 +34,7 @@ log.setLevel(logging.INFO)
 log.addHandler(handler)
 
 def wit_recognize_callback(recognizer, audio):    
-    background_play('./sounds/ding.wav', 0.5)
+    background_play('./sounds/ding.wav')
     log.info('interpreting speech...')
     # received audio data, now we'll recognize it using Google Speech Recognition
     try:
