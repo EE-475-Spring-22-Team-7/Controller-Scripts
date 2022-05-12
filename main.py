@@ -180,11 +180,24 @@ def initialize_recognizer():
     log.info('Mic index = {mi}, detection threshold = {th}'.format(mi=device_idx, th=r.energy_threshold))
     return (r, m)
 
+def wait_for_ping(hostname, time=60):
+    for i in range(time):
+        # Done if hostname can be pinged
+        if os.system(f'ping -c 1 {hostname} >> /dev/null') == 0:
+            log.info(f'hostname "{hostname}" found after {i+1} tries.')
+            return
+        sleep(1) # Wait 1 sec between pings
+    log.info(f'hostname "{hostname}" could not be pinged for {time} seconds')
+    exit(1) # Error if timeout
+
 def main():
     try:
         (r, m) = initialize_recognizer()
-        foreground_play('./sounds/happy-ding-2.wav')
-        # log.info('listening started...')
+
+        background_play('./sounds/ding.wav')
+        wait_for_ping('wit.ai', 120) # Try for 2 minutes to ping wit service
+        foreground_play('./sounds/happy-ding-2.wav') # Connection success
+
         log.info('listening started...')
         stop_listening = r.listen_in_background(m, wit_recognize_callback) # start listening in the background
         # "stop_listening" is now a function that, when called, stops background listening
@@ -196,7 +209,7 @@ def main():
     except KeyboardInterrupt: pass # Skips to "finally"
     except Exception as e:
         # Some unexpected error! Crash!        
-        foreground_play('./sounds/breaking-glass.wav')        
+        foreground_play('./sounds/breaking-glass.wav', 2)
         log.info('### EXCEPTION! : '+str(e))
         os._exit(1) # Exit without "finally"!
     
