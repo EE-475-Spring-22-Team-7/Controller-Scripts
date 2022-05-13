@@ -188,7 +188,7 @@ def wait_for_ping(hostname, time=60):
             return
         sleep(1) # Wait 1 sec between pings
     log.info(f'hostname "{hostname}" could not be pinged for {time} seconds')
-    exit(1) # Error if timeout
+    raise Exception # Error if timeout
 
 def main():
     try:
