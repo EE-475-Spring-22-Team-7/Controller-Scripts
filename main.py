@@ -8,6 +8,7 @@ import logging, sys, os
 import speech_recognition as sr
 from bluedot.btcomm import BluetoothClient
 from cmd_struct import pack_cmd
+import RC_car_bt as bt
 
 # Exit on SIGTERM
 import signal
@@ -35,24 +36,6 @@ log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
 log.addHandler(handler)
 
-# TODO: refactor to only connect if necessary
-def data_rx(data):  log.info(f'Recieved BT data: "{data}"')
-
-def bt_send(cmd):
-    try:
-        log.info('BT connecting...')
-        c = BluetoothClient('vcrc_car', data_rx, 
-            device='/org/bluez/hci0', encoding=None) # Sending bytes!
-        log.info('BT connected!')
-        cmd_bytes = pack_cmd(*cmd)
-        c.send(cmd_bytes)
-        log.info(f'cmd = {cmd}, data = "{cmd_bytes.hex(":")}" sent!')
-        c.disconnect()
-        return True
-    except Exception as e:
-        log.info(e)
-        return False
-
 def wit_recognize_callback(recognizer, audio):    
     background_play('./sounds/ding.wav')
     log.info('interpreting speech...')
@@ -65,7 +48,8 @@ def wit_recognize_callback(recognizer, audio):
         log.info('')
         cmd_result = interpret_wit_result(result)
         if cmd_result:
-            success = bt_send(cmd_result)
+            # success = bt_send(cmd_result)
+            success = bt.send(cmd_result, log)
 
         # Play sounds!
         if cmd_result and success:
@@ -238,7 +222,9 @@ def main():
 
         background_play('./sounds/ding.wav')
         wait_for_ping('wit.ai', 120) # Try for 2 minutes to ping wit service
+        bt.connect(log) # Connect to Bluetooth if available (OK if doesn't connect)
         foreground_play('./sounds/happy-ding-2.wav') # Connection success
+
 
         log.info('listening started...')
         stop_listening = r.listen_in_background(m, wit_recognize_callback) # start listening in the background

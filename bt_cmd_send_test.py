@@ -10,7 +10,7 @@ c = BluetoothClient('vcrc_car', data_rx,
 	device='/org/bluez/hci0', encoding=None) # Sending bytes!
 print('Connected!')
 
-cmd = pack_cmd('move_forward', 3.0)
+cmd = pack_cmd('move_backward', 3.0)
 c.send(cmd)
 print(f'cmd "{cmd.hex(":")}" sent!')
 
