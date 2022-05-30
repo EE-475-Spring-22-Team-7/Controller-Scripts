@@ -6,7 +6,7 @@ struct_format_str = '<ifi'
 cmd_enum = {
     'invalid_cmd'   : 0,
     'move_forward'  : 1,
-    'move_bakcward' : 2,
+    'move_backward' : 2,
     'rotate_right'  : 3,
     'rotate_left'   : 4,
     'rotate_around' : 5,

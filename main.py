@@ -6,6 +6,8 @@ from time import sleep
 import json
 import logging, sys, os
 import speech_recognition as sr
+from bluedot.btcomm import BluetoothClient
+from cmd_struct import pack_cmd
 
 # Exit on SIGTERM
 import signal
@@ -25,13 +27,31 @@ API_KEY='3X2AUX3KXFN63HOMNOKIGHG2LUHRUH3T' # Version 2.1
 CONF_THRESH = 0.4
 
 DEFAULT_DIST = 3 # feet
-DEFAULT_ROTATION = 45 # degrees
+DEFAULT_ROTATION = 90 # degrees
 
 # Defile logger
 handler = logging.StreamHandler(stream=sys.stdout)
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
 log.addHandler(handler)
+
+# TODO: refactor to only connect if necessary
+def data_rx(data):  log.info(f'Recieved BT data: "{data}"')
+
+def bt_send(cmd):
+    try:
+        log.info('BT connecting...')
+        c = BluetoothClient('vcrc_car', data_rx, 
+            device='/org/bluez/hci0', encoding=None) # Sending bytes!
+        log.info('BT connected!')
+        cmd_bytes = pack_cmd(*cmd)
+        c.send(cmd_bytes)
+        log.info(f'cmd = {cmd}, data = "{cmd_bytes.hex(":")}" sent!')
+        c.disconnect()
+        return True
+    except Exception as e:
+        log.info(e)
+        return False
 
 def wit_recognize_callback(recognizer, audio):    
     background_play('./sounds/ding.wav')
@@ -43,9 +63,12 @@ def wit_recognize_callback(recognizer, audio):
         log.info(json.dumps(result, indent=2))
         #log.info(result)
         log.info('')
-        success = interpret_wit_result(result)
+        cmd_result = interpret_wit_result(result)
+        if cmd_result:
+            success = bt_send(cmd_result)
+
         # Play sounds!
-        if success:
+        if cmd_result and success:
             foreground_play('./sounds/fast-happy-ding.wav');
         else:
             foreground_play('./sounds/sad-dings.wav');
@@ -66,25 +89,31 @@ def interpret_wit_result(d):
     try:
         if not 'intent' in d['entities']:
             log.info('ERROR: No intent result')
-            return False
+            return None
         if d['entities']['intent'][0]['confidence'] < CONF_THRESH:
             log.info('ERROR: intent confidence low')
-            return False
+            return None
         cmd_intent = d['entities']['intent'][0]['value']
 
+        speed_cmd = None
         if 'speed' in d['entities']:
             if d['entities']['speed'][0]['confidence'] >= CONF_THRESH:
                 val = d['entities']['speed'][0]['value'].upper()
                 log.info('>>> RC COMMAND >>>   UPDATE TO {} SPEED'.format(val))
+                speed_cmd = val.lower()+'_speed'
         
+        cmd_type = None
+        cmd_val = None
         if cmd_intent == 'move_forward':
             distance = DEFAULT_DIST
             if 'distance' in d['entities']:
                 distance = handle_distance(d['entities']['distance'][0])
             if distance == None:
                 log.info('ERROR: invalid distance')
-                return False
+                return None
             log.info('>>> RC COMMAND >>>   MOVE FORWARD {} FEET'.format(distance))
+            cmd_type = 'move_forward'
+            cmd_val = distance
         
         elif cmd_intent == 'move_backward':
             distance = DEFAULT_DIST
@@ -92,8 +121,10 @@ def interpret_wit_result(d):
                 distance = handle_distance(d['entities']['distance'][0])
             if distance == None:
                 log.info('ERROR: invalid distance')
-                return False
+                return None
             log.info('>>> RC COMMAND >>>   MOVE BACKWARD {} FEET'.format(distance))
+            cmd_type = 'move_backward'
+            cmd_val = distance
         
         elif cmd_intent == 'rotate_right':
             angle = DEFAULT_ROTATION
@@ -101,8 +132,10 @@ def interpret_wit_result(d):
                 angle = handle_angle(d['entities']['angle'][0])
             if angle == None:
                 log.info('ERROR: invalid angle')
-                return False
+                return None
             log.info('>>> RC COMMAND >>>   ROTATE RIGHT {} DEGREES'.format(angle))
+            cmd_type = 'rotate_right'
+            cmd_val = angle
         
         elif cmd_intent == 'rotate_left':
             angle = DEFAULT_ROTATION
@@ -110,22 +143,31 @@ def interpret_wit_result(d):
                 angle = handle_angle(d['entities']['angle'][0])
             if angle == None:
                 log.info('ERROR: invalid angle')
-                return False
+                return None
             log.info('>>> RC COMMAND >>>   ROTATE LEFT {} DEGREES'.format(angle))
+            cmd_type = 'rotate_left'
+            cmd_val = angle
         
         elif cmd_intent == 'rotate_back':
             log.info('>>> RC COMMAND >>>   ROTATE LEFT {} DEGREES'.format(180))
+            cmd_type = 'rotate_around'
         
         elif cmd_intent == 'cancel':
             log.info('>>> RC COMMAND >>>   CANCEL')
+            cmd_type = 'cancel'
         
         elif cmd_intent == 'continue':
             log.info('>>> RC COMMAND >>>   CONTINUE')
+            cmd_type = 'continue'
         
         else:
             log.info('ERROR: intent "{}" not recognized'.format(cmd_intent))
 
-        return True
+        if cmd_val != None:
+            if speed_cmd != None:
+                return (cmd_type, cmd_val, speed_cmd)
+            return (cmd_type, cmd_val)
+        return (cmd_type,)
 
     except KeyError as e:
         log.info('result dictionary key error: "{}"'.format(e))
