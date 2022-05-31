@@ -27,7 +27,7 @@ API_KEY='3X2AUX3KXFN63HOMNOKIGHG2LUHRUH3T' # Version 2.1
 
 CONF_THRESH = 0.4
 
-DEFAULT_DIST = 3 # feet
+DEFAULT_DIST = 0 # feet
 DEFAULT_ROTATION = 90 # degrees
 
 # Defile logger
@@ -200,7 +200,7 @@ def initialize_recognizer():
     with m as source:
         r.adjust_for_ambient_noise(source)
     r.dynamic_energy_threshold = False
-    r.energy_threshold = 130
+    r.energy_threshold = 600
     #r.operation_timeout = 3.0
 
     log.info('Mic index = {mi}, detection threshold = {th}'.format(mi=device_idx, th=r.energy_threshold))
